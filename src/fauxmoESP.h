@@ -99,7 +99,7 @@ class fauxmoESP {
         void createServer(bool internal) { _internal = internal; }
         void setPort(unsigned long tcp_port) { _tcp_port = tcp_port; }
         void handle();
-        String fauxmoESP::getDescriptionXml();
+        String getDescriptionXml();
 
     private:
 
@@ -121,7 +121,7 @@ class fauxmoESP {
         void _onUDPData(const IPAddress remoteIP, unsigned int remotePort, void *data, size_t len);
         void _sendUDPResponse();
 
-        String fauxmoESP::_getTCPDescription();
+        String _getTCPDescription();
         void _onTCPClient(AsyncClient *client);
         bool _onTCPData(AsyncClient *client, void *data, size_t len);
         bool _onTCPRequest(AsyncClient *client, bool isGet, String url, String body);
