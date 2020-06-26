@@ -35,7 +35,7 @@ THE SOFTWARE.
 
 void fauxmoESP::_sendUDPResponse() {
 
-	DEBUG_MSG_FAUXMO("[FAUXMO] Responding to M-SEARCH request..\n");
+	// DEBUG_MSG_FAUXMO("[FAUXMO] Responding to M-SEARCH request..\n");
 
 	IPAddress ip = WiFi.localIP();
     String mac = WiFi.macAddress();
@@ -51,9 +51,9 @@ void fauxmoESP::_sendUDPResponse() {
         mac.c_str(), mac.c_str()
     );
 
-	//#if DEBUG_FAUXMO_VERBOSE_UDP
+	#if DEBUG_FAUXMO_VERBOSE_UDP
     	DEBUG_MSG_FAUXMO("[FAUXMO] UDP response sent to %s:%d\n%s", _udp.remoteIP().toString().c_str(), _udp.remotePort(), response);
-	//#endif
+	#endif
 
     _udp.beginPacket(_udp.remoteIP(), _udp.remotePort());
 	#if defined(ESP32)
@@ -74,9 +74,9 @@ void fauxmoESP::_handleUDP() {
         _udp.read(data, len);
         data[len] = 0;
 
-		//#if DEBUG_FAUXMO_VERBOSE_UDP
+		#if DEBUG_FAUXMO_VERBOSE_UDP
 			DEBUG_MSG_FAUXMO("[FAUXMO] UDP packet received\n%s", (const char *) data);
-		//#endif
+		#endif
 
         String request = (const char *) data;
         if (request.indexOf("M-SEARCH") >= 0) {
@@ -103,7 +103,7 @@ void fauxmoESP::_sendTCPResponse(AsyncClient *client, const char * code, char * 
 	);
 
 	//#if DEBUG_FAUXMO_VERBOSE_TCP
-		DEBUG_MSG_FAUXMO("[FAUXMO] Response:\n%s%s\n", headers, body);
+		DEBUG_MSG_FAUXMO("[FAUXMO] TCP Response:\n%s%s\n", headers, body);
 	//#endif
 
 	client->write(headers);
@@ -138,7 +138,7 @@ bool fauxmoESP::_onTCPDescription(AsyncClient *client, String url, String body) 
 	(void) url;
 	(void) body;
 
-	DEBUG_MSG_FAUXMO("[FAUXMO] Handling /description.xml request\n");
+	DEBUG_MSG_FAUXMO("[FAUXMO] _onTCPDescription Handling /description.xml request\n");
 
 	IPAddress ip = WiFi.localIP();
     String mac = WiFi.macAddress();
@@ -154,7 +154,7 @@ bool fauxmoESP::_onTCPDescription(AsyncClient *client, String url, String body) 
         mac.c_str(), mac.c_str()
     );
 
-	DEBUG_MSG_FAUXMO("[FAUXMO] Sending response: %s\n", response);
+	DEBUG_MSG_FAUXMO("[FAUXMO] _onTCPDescription Sending response: %s\n", response);
 	_sendTCPResponse(client, "200 OK", response, "text/xml");
 
 	return true;
@@ -199,12 +199,7 @@ bool fauxmoESP::_onTCPList(AsyncClient *client, String url, String body) {
 	// Client is requesting all devices
 	if (0 == id) {
 
-		response += "{";
-		for (unsigned char i=0; i< _devices.size(); i++) {
-			if (i>0) response += ",";
-			response += "\"" + String(i+1) + "\":" + _deviceJson(i);
-		}
-		response += "}";
+		response = _getDeviceList();
 
 	// Client is requesting a single device
 	} else {
@@ -215,6 +210,38 @@ bool fauxmoESP::_onTCPList(AsyncClient *client, String url, String body) {
 	
 	return true;
 
+}
+
+String fauxmoESP::_getDeviceList() {
+	// This will hold the response string	
+	String response;
+
+	response += "{";
+	for (unsigned char i=0; i< _devices.size(); i++) {
+		if (i>0) response += ",";
+		response += "\"" + String(i+1) + "\":" + _deviceJson(i);
+	}
+	response += "}\n\r";
+
+	return response;
+}
+
+String fauxmoESP::_getStateResponse(int id, bool state) {
+	char response[strlen_P(FAUXMO_TCP_STATE_RESPONSE)+10];
+			snprintf_P(
+				response, sizeof(response),
+				FAUXMO_TCP_STATE_RESPONSE,
+				id+1, state ? "true" : "false", id+1, _devices[id].value
+			);
+			/*
+		char response[strlen_P(FAUXMO_TCP_STATE_RESPONSE)+10];
+					snprintf_P(
+						response, sizeof(response),
+						FAUXMO_TCP_STATE_RESPONSE,
+						id+1, _devices[id].state ? "true" : "false", id+1, _devices[id].value
+					);
+			*/
+			return String(response);
 }
 
 bool fauxmoESP::_onTCPControl(AsyncClient *client, String url, String body) {
@@ -433,6 +460,18 @@ unsigned char fauxmoESP::addDevice(const char * device_name) {
 
     return device_id;
 
+}
+
+String fauxmoESP::getStateResponse(int id, bool state) {
+	return _getStateResponse(id, state);
+}
+
+String fauxmoESP::getDeviceList() {
+	return _getDeviceList();
+}
+
+String fauxmoESP::getDevice(int id) {
+	return _deviceJson(id);
 }
 
 int fauxmoESP::getDeviceId(const char * device_name) {
